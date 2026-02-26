@@ -32,7 +32,9 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
-
+    protected $casts = [
+        'crypto_private_keys' => 'encrypted', // Laravel автоматически шифрует/дешифрует
+    ];
     /**
      * Get the attributes that should be cast.
      *
@@ -44,5 +46,10 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function wallets()
+    {
+        return $this->hasMany(Wallet::class);
     }
 }

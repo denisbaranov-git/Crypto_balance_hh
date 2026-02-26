@@ -1,39 +1,57 @@
 <?php
-// app/Services/CryptoService.php
+// app/Services/AccountService.php
 
 namespace App\Services;
 
 use App\Models\Wallet;
 use App\Models\CryptoTransaction;
 use App\Enums\TransactionTypeEnum;
+use App\Services\Blockchain\BlockchainClientFactory;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
-class CryptoService
+class AccountService
 {
-    // Точность вычислений (количество знаков после запятой) – должна совпадать с точностью хранения в БД.
-    private const SCALE = 8;
+    public function __construct(
+        private BlockchainClientFactory $clientFactory,
+    ) {}
+    private const SCALE = 8; // точность вычислений (должна совпадать с точностью хранения в БД)
 
+    /**
+     * Зачисление депозита (пополнение извне).
+     */
     public function deposit(Wallet $wallet, string $amount, ?string $txid = null, array $metadata = []): CryptoTransaction
     {
         return $this->createTransaction($wallet, TransactionTypeEnum::DEPOSIT, $amount, $txid, $metadata);
     }
 
+    /**
+     * Вывод средств на внешний адрес.
+     */
     public function withdraw(Wallet $wallet, string $amount, array $metadata = []): CryptoTransaction
     {
         return $this->createTransaction($wallet, TransactionTypeEnum::WITHDRAW, $amount, null, $metadata);
     }
 
+    /**
+     * Списание комиссии.
+     */
     public function fee(Wallet $wallet, string $amount, ?string $txid = null, array $metadata = []): CryptoTransaction
     {
         return $this->createTransaction($wallet, TransactionTypeEnum::FEE, $amount, $txid, $metadata);
     }
 
+    /**
+     * Возврат средств (refund).
+     */
     public function refund(Wallet $wallet, string $amount, ?string $txid = null, array $metadata = []): CryptoTransaction
     {
         return $this->createTransaction($wallet, TransactionTypeEnum::REFUND, $amount, $txid, $metadata);
     }
 
+    /**
+     * Подтверждение транзакции (после получения достаточного числа подтверждений).
+     */
     public function confirmTransaction(CryptoTransaction $transaction, string $txid): void
     {
         DB::transaction(function () use ($transaction, $txid) {
@@ -49,55 +67,56 @@ class CryptoService
         });
     }
 
+    /**
+     * Отмена транзакции (при реорганизации или ошибке отправки).
+     */
     public function cancelTransaction(CryptoTransaction $transaction): void
     {
         DB::transaction(function () use ($transaction) {
             $transaction = CryptoTransaction::where('id', $transaction->id)->lockForUpdate()->first();
-            if ($transaction->status !== 'pending') return;
 
-            $wallet = Wallet::where('id', $transaction->wallet_id)->lockForUpdate()->first();
-
-            // Восстанавливаем баланс в зависимости от типа
-            if (in_array($transaction->type, [TransactionTypeEnum::WITHDRAW, TransactionTypeEnum::FEE])) {
-                // При списании баланс был уменьшен, значит возвращаем
-                $wallet->balance = bcadd($wallet->balance, $transaction->amount, self::SCALE);
-            } elseif (in_array($transaction->type, [TransactionTypeEnum::DEPOSIT, TransactionTypeEnum::REFUND])) {
-                // При зачислении баланс был увеличен, значит уменьшаем
-                $wallet->balance = bcsub($wallet->balance, $transaction->amount, self::SCALE);
+            if ($transaction->status !== 'pending') {
+                return;
             }
 
-            $wallet->save();
+            // Если транзакция уменьшала баланс (withdraw, fee) – восстанавливаем
+            if (in_array($transaction->type, [
+                TransactionTypeEnum::WITHDRAW->value,
+                TransactionTypeEnum::FEE->value
+            ], true)) {
+                $wallet = Wallet::where('id', $transaction->wallet_id)->lockForUpdate()->first();
+                $newBalance = bcadd($wallet->balance, $transaction->amount, self::SCALE);
+                $wallet->balance = $newBalance;
+                $wallet->save();
+            }
+
             $transaction->status = 'cancelled';
             $transaction->save();
         });
     }
 
+    /**
+     * Создание транзакции и обновление баланса.
+     */
     private function createTransaction(Wallet $wallet, TransactionTypeEnum $type, string $amount, ?string $txid, array $metadata): CryptoTransaction
     {
-        $isCredit = in_array($type, [
-            TransactionTypeEnum::DEPOSIT,
-            TransactionTypeEnum::REFUND,
-        ], true);
-
-        return DB::transaction(function () use ($wallet, $type, $amount, $txid, $metadata, $isCredit) {
-            // Блокируем кошелёк
+        return DB::transaction(function () use ($wallet, $type, $amount, $txid, $metadata) {
             $wallet = Wallet::where('id', $wallet->id)->lockForUpdate()->first();
 
-            $balanceBefore = $wallet->balance; // строка
+            $balanceBefore = $wallet->balance;
 
-            // Проверка достаточности для списания
-            if (!$isCredit && bccomp($balanceBefore, $amount, self::SCALE) < 0) {
+            // Проверка достаточности для дебетовых операций
+            if (!$type->isCredit() && bccomp($balanceBefore, $amount, self::SCALE) < 0) {
                 throw new RuntimeException('Insufficient balance for ' . $type->value);
             }
 
-            $balanceAfter = $isCredit
+            $balanceAfter = $type->isCredit()
                 ? bcadd($balanceBefore, $amount, self::SCALE)
                 : bcsub($balanceBefore, $amount, self::SCALE);
 
             $transaction = CryptoTransaction::create([
                 'wallet_id'      => $wallet->id,
                 'txid'           => $txid,
-                'block_number' => $metadata['block'] ?? null,
                 'type'           => $type->value,
                 'amount'         => $amount,
                 'balance_before' => $balanceBefore,
@@ -111,15 +130,5 @@ class CryptoService
 
             return $transaction;
         });
-    }
-    private function rollbackTransactionsFrom(int $startBlock, CryptoService $accountService): void
-    {
-        $transactions = CryptoTransaction::where('status', 'pending')
-            ->where('block_number', '>=', $startBlock)
-            ->get();
-
-        foreach ($transactions as $transaction) {
-            $accountService->cancelTransaction($transaction);
-        }
     }
 }

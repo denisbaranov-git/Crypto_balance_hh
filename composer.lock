@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0f940b8d6bc4420f96a534d1315b95e5",
+    "content-hash": "e68630f1d8fd8d11e8f2086d43e50bcd",
     "packages": [
         {
             "name": "brick/math",
@@ -442,60 +442,6 @@
             "time": "2025-10-31T18:51:33+00:00"
         },
         {
-            "name": "drlecks/simple-web3-php",
-            "version": "v0.10",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/drlecks/Simple-Web3-Php.git",
-                "reference": "781087b33f14ef878fd065cd9b7007eeb6088efb"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/drlecks/Simple-Web3-Php/zipball/781087b33f14ef878fd065cd9b7007eeb6088efb",
-                "reference": "781087b33f14ef878fd065cd9b7007eeb6088efb",
-                "shasum": ""
-            },
-            "require": {
-                "kornrunner/ethereum-offline-raw-tx": "^0.4.0",
-                "kornrunner/keccak": "~1",
-                "phpseclib/phpseclib": "~2.0.30",
-                "simplito/elliptic-php": "^1.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "SWeb3\\": "Core/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "drlecks",
-                    "email": "contacte@powdercode.com",
-                    "homepage": "https://github.com/drlecks/Simple-Web3-Php"
-                }
-            ],
-            "description": "Web3 library in PHP",
-            "keywords": [
-                "contract",
-                "eth",
-                "ethereum",
-                "jsonrpc",
-                "php",
-                "signed transaction",
-                "transaction",
-                "web3"
-            ],
-            "support": {
-                "issues": "https://github.com/drlecks/Simple-Web3-Php/issues",
-                "source": "https://github.com/drlecks/Simple-Web3-Php/tree/v0.10"
-            },
-            "time": "2022-12-12T17:26:52+00:00"
-        },
-        {
             "name": "egulias/email-validator",
             "version": "4.0.4",
             "source": {
@@ -561,82 +507,6 @@
                 }
             ],
             "time": "2025-03-06T22:45:56+00:00"
-        },
-        {
-            "name": "fgrosse/phpasn1",
-            "version": "v2.5.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/fgrosse/PHPASN1.git",
-                "reference": "42060ed45344789fb9f21f9f1864fc47b9e3507b"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/fgrosse/PHPASN1/zipball/42060ed45344789fb9f21f9f1864fc47b9e3507b",
-                "reference": "42060ed45344789fb9f21f9f1864fc47b9e3507b",
-                "shasum": ""
-            },
-            "require": {
-                "php": "^7.1 || ^8.0"
-            },
-            "require-dev": {
-                "php-coveralls/php-coveralls": "~2.0",
-                "phpunit/phpunit": "^7.0 || ^8.0 || ^9.0"
-            },
-            "suggest": {
-                "ext-bcmath": "BCmath is the fallback extension for big integer calculations",
-                "ext-curl": "For loading OID information from the web if they have not bee defined statically",
-                "ext-gmp": "GMP is the preferred extension for big integer calculations",
-                "phpseclib/bcmath_compat": "BCmath polyfill for servers where neither GMP nor BCmath is available"
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "2.0.x-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "FG\\": "lib/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Friedrich Große",
-                    "email": "friedrich.grosse@gmail.com",
-                    "homepage": "https://github.com/FGrosse",
-                    "role": "Author"
-                },
-                {
-                    "name": "All contributors",
-                    "homepage": "https://github.com/FGrosse/PHPASN1/contributors"
-                }
-            ],
-            "description": "A PHP Framework that allows you to encode and decode arbitrary ASN.1 structures using the ITU-T X.690 Encoding Rules.",
-            "homepage": "https://github.com/FGrosse/PHPASN1",
-            "keywords": [
-                "DER",
-                "asn.1",
-                "asn1",
-                "ber",
-                "binary",
-                "decoding",
-                "encoding",
-                "x.509",
-                "x.690",
-                "x509",
-                "x690"
-            ],
-            "support": {
-                "issues": "https://github.com/fgrosse/PHPASN1/issues",
-                "source": "https://github.com/fgrosse/PHPASN1/tree/v2.5.0"
-            },
-            "abandoned": true,
-            "time": "2022-12-19T11:08:26+00:00"
         },
         {
             "name": "fruitcake/php-cors",
@@ -708,6 +578,86 @@
                 }
             ],
             "time": "2025-12-03T09:33:47+00:00"
+        },
+        {
+            "name": "genkgo/php-asn1",
+            "version": "v2.9.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/genkgo/php-asn1.git",
+                "reference": "dc535345d0ecc69181c6a1e17e57a625bd01f891"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/genkgo/php-asn1/zipball/dc535345d0ecc69181c6a1e17e57a625bd01f891",
+                "reference": "dc535345d0ecc69181c6a1e17e57a625bd01f891",
+                "shasum": ""
+            },
+            "require": {
+                "php": "~8.1.0 || ~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0"
+            },
+            "require-dev": {
+                "php-coveralls/php-coveralls": "~2.0",
+                "phpunit/phpunit": "^9.0"
+            },
+            "suggest": {
+                "ext-bcmath": "BCmath is the fallback extension for big integer calculations",
+                "ext-curl": "For loading OID information from the web if they have not bee defined statically",
+                "ext-gmp": "GMP is the preferred extension for big integer calculations",
+                "phpseclib/bcmath_compat": "BCmath polyfill for servers where neither GMP nor BCmath is available"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "FG\\": "lib/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Frederik Bosch",
+                    "email": "f.bosch@genkgo.nl",
+                    "role": "Author"
+                },
+                {
+                    "name": "Friedrich Große",
+                    "email": "friedrich.grosse@gmail.com",
+                    "homepage": "https://github.com/FGrosse",
+                    "role": "Author"
+                },
+                {
+                    "name": "All contributors",
+                    "homepage": "https://github.com/genkgo/php-asn1/contributors"
+                }
+            ],
+            "description": "A PHP Framework that allows you to encode and decode arbitrary ASN.1 structures using the ITU-T X.690 Encoding Rules.",
+            "homepage": "https://github.com/FGrosse/PHPASN1",
+            "keywords": [
+                "DER",
+                "asn.1",
+                "asn1",
+                "ber",
+                "binary",
+                "decoding",
+                "encoding",
+                "x.509",
+                "x.690",
+                "x509",
+                "x690"
+            ],
+            "support": {
+                "issues": "https://github.com/genkgo/php-asn1/issues",
+                "source": "https://github.com/genkgo/php-asn1/tree/v2.9.0"
+            },
+            "time": "2026-01-06T11:43:05+00:00"
         },
         {
             "name": "graham-campbell/result-type",
@@ -1183,32 +1133,34 @@
             "time": "2025-08-22T14:27:06+00:00"
         },
         {
-            "name": "kornrunner/ethereum-offline-raw-tx",
-            "version": "0.4.0",
+            "name": "just-luka/php-tron",
+            "version": "v1.1.1",
             "source": {
                 "type": "git",
-                "url": "https://github.com/kornrunner/php-ethereum-offline-raw-tx.git",
-                "reference": "2665fc539bad911e337def3b6e518505369286aa"
+                "url": "https://github.com/just-Luka/php-tron.git",
+                "reference": "1f059dda09972f8f8a811e8b8a96cb1531ccda9b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/kornrunner/php-ethereum-offline-raw-tx/zipball/2665fc539bad911e337def3b6e518505369286aa",
-                "reference": "2665fc539bad911e337def3b6e518505369286aa",
+                "url": "https://api.github.com/repos/just-Luka/php-tron/zipball/1f059dda09972f8f8a811e8b8a96cb1531ccda9b",
+                "reference": "1f059dda09972f8f8a811e8b8a96cb1531ccda9b",
                 "shasum": ""
             },
             "require": {
-                "kornrunner/keccak": "^1.0",
-                "kornrunner/secp256k1": "^0.2",
-                "php": ">=7.3",
-                "web3p/rlp": "^0.3"
+                "ext-curl": "*",
+                "ext-gmp": "*",
+                "kornrunner/secp256k1": "^0.3",
+                "php": ">=8.2",
+                "simplito/elliptic-php": "^1.0.12"
             },
             "require-dev": {
-                "phpunit/phpunit": "^9"
+                "monolog/monolog": "^3.0",
+                "phpunit/phpunit": "*"
             },
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "kornrunner\\": "src"
+                    "Trx\\": "src/Trx/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -1217,23 +1169,16 @@
             ],
             "authors": [
                 {
-                    "name": "Boris Momcilovic",
-                    "homepage": "https://github.com/kornrunner/php-ethereum-offline-tx"
+                    "name": "Luka T.",
+                    "email": "info.tsiklauri@gmail.com"
                 }
             ],
-            "description": "Pure PHP Ethereum Offline Raw Transaction Signer",
-            "keywords": [
-                "eth",
-                "ethereum",
-                "offline",
-                "transaction",
-                "tx"
-            ],
+            "description": "PHP package for interacting with TRX network",
             "support": {
-                "issues": "https://github.com/kornrunner/php-ethereum-offline-raw-tx/issues",
-                "source": "https://github.com/kornrunner/php-ethereum-offline-raw-tx/tree/0.4.0"
+                "issues": "https://github.com/just-Luka/php-tron/issues",
+                "source": "https://github.com/just-Luka/php-tron/tree/v1.1.1"
             },
-            "time": "2021-08-17T17:40:16+00:00"
+            "time": "2025-03-17T17:35:11+00:00"
         },
         {
             "name": "kornrunner/keccak",
@@ -1286,21 +1231,21 @@
         },
         {
             "name": "kornrunner/secp256k1",
-            "version": "0.2.0",
+            "version": "0.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/kornrunner/php-secp256k1.git",
-                "reference": "c3990dba47c7a8b0c9fd858fb29c61a5794fbb39"
+                "reference": "0cfc81c5a1aae3f654ad34ee9d77f0bb9bdde2ef"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/kornrunner/php-secp256k1/zipball/c3990dba47c7a8b0c9fd858fb29c61a5794fbb39",
-                "reference": "c3990dba47c7a8b0c9fd858fb29c61a5794fbb39",
+                "url": "https://api.github.com/repos/kornrunner/php-secp256k1/zipball/0cfc81c5a1aae3f654ad34ee9d77f0bb9bdde2ef",
+                "reference": "0cfc81c5a1aae3f654ad34ee9d77f0bb9bdde2ef",
                 "shasum": ""
             },
             "require": {
-                "mdanter/ecc": "^1",
-                "php": ">=7.3"
+                "paragonie/ecc": "^2",
+                "php": ">=8.1"
             },
             "require-dev": {
                 "phpunit/phpunit": "^9"
@@ -1330,9 +1275,9 @@
             ],
             "support": {
                 "issues": "https://github.com/kornrunner/php-secp256k1/issues",
-                "source": "https://github.com/kornrunner/php-secp256k1/tree/0.2.0"
+                "source": "https://github.com/kornrunner/php-secp256k1/tree/0.3.0"
             },
-            "time": "2021-01-19T03:30:01+00:00"
+            "time": "2024-04-25T09:22:43+00:00"
         },
         {
             "name": "laravel/framework",
@@ -2365,83 +2310,6 @@
             "time": "2026-01-15T06:54:53+00:00"
         },
         {
-            "name": "mdanter/ecc",
-            "version": "v1.0.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/phpecc/phpecc.git",
-                "reference": "34e2eec096bf3dcda814e8f66dd91ae87a2db7cd"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/phpecc/phpecc/zipball/34e2eec096bf3dcda814e8f66dd91ae87a2db7cd",
-                "reference": "34e2eec096bf3dcda814e8f66dd91ae87a2db7cd",
-                "shasum": ""
-            },
-            "require": {
-                "ext-gmp": "*",
-                "fgrosse/phpasn1": "^2.0",
-                "php": "^7.0||^8.0"
-            },
-            "require-dev": {
-                "phpunit/phpunit": "^6.0||^8.0||^9.0",
-                "squizlabs/php_codesniffer": "^2.0",
-                "symfony/yaml": "^2.6|^3.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Mdanter\\Ecc\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Matyas Danter",
-                    "homepage": "http://matejdanter.com/",
-                    "role": "Author"
-                },
-                {
-                    "name": "Thibaud Fabre",
-                    "email": "thibaud@aztech.io",
-                    "homepage": "http://aztech.io",
-                    "role": "Maintainer"
-                },
-                {
-                    "name": "Thomas Kerin",
-                    "email": "afk11@users.noreply.github.com",
-                    "role": "Maintainer"
-                }
-            ],
-            "description": "PHP Elliptic Curve Cryptography library",
-            "homepage": "https://github.com/phpecc/phpecc",
-            "keywords": [
-                "Diffie",
-                "ECDSA",
-                "Hellman",
-                "curve",
-                "ecdh",
-                "elliptic",
-                "nistp192",
-                "nistp224",
-                "nistp256",
-                "nistp384",
-                "nistp521",
-                "phpecc",
-                "secp256k1",
-                "secp256r1"
-            ],
-            "support": {
-                "issues": "https://github.com/phpecc/phpecc/issues",
-                "source": "https://github.com/phpecc/phpecc/tree/v1.0.0"
-            },
-            "abandoned": "paragonie/ecc",
-            "time": "2021-01-16T19:42:14+00:00"
-        },
-        {
             "name": "monolog/monolog",
             "version": "3.10.0",
             "source": {
@@ -2949,6 +2817,192 @@
                 }
             ],
             "time": "2026-02-16T23:10:27+00:00"
+        },
+        {
+            "name": "paragonie/ecc",
+            "version": "v2.5.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/paragonie/phpecc.git",
+                "reference": "d25bd2aab9b1205db1cf3aa3e83531d4549377bf"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/paragonie/phpecc/zipball/d25bd2aab9b1205db1cf3aa3e83531d4549377bf",
+                "reference": "d25bd2aab9b1205db1cf3aa3e83531d4549377bf",
+                "shasum": ""
+            },
+            "require": {
+                "ext-gmp": "*",
+                "genkgo/php-asn1": "^2",
+                "paragonie/sodium_compat": "^1|^2",
+                "php": "^7.1||^8.0"
+            },
+            "require-dev": {
+                "bitcoin/bips": "dev-master",
+                "c2sp/wycheproof": "dev-master",
+                "ext-json": "*",
+                "phpunit/phpunit": "^6|^7|^8|^9",
+                "squizlabs/php_codesniffer": "^2|^3",
+                "symfony/yaml": "^2.6|^3.0|^4|^5|^6|^7",
+                "vimeo/psalm": "^2|^3|^4|^5|^6"
+            },
+            "suggest": {
+                "ext-openssl": "(PHP 8.1, OpenSSL 3+) Improved performance, less worries about side-channels"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Mdanter\\Ecc\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Paragon Initiative Enterprises",
+                    "email": "security@paragonie.com",
+                    "homepage": "https://paragonie.com",
+                    "role": "New Maintainer"
+                },
+                {
+                    "name": "Matyas Danter",
+                    "homepage": "http://matejdanter.com/",
+                    "role": "Previous Author"
+                },
+                {
+                    "name": "Thibaud Fabre",
+                    "email": "thibaud@aztech.io",
+                    "homepage": "http://aztech.io",
+                    "role": "Previous Maintainer"
+                },
+                {
+                    "name": "Thomas Kerin",
+                    "email": "afk11@users.noreply.github.com",
+                    "role": "Previous Maintainer"
+                }
+            ],
+            "description": "PHP Elliptic Curve Cryptography library",
+            "homepage": "https://github.com/phpecc/phpecc",
+            "keywords": [
+                "Diffie",
+                "ECDSA",
+                "Hellman",
+                "curve",
+                "ecdh",
+                "elliptic",
+                "nistp192",
+                "nistp224",
+                "nistp256",
+                "nistp384",
+                "nistp521",
+                "phpecc",
+                "secp256k1",
+                "secp256r1"
+            ],
+            "support": {
+                "issues": "https://github.com/paragonie/phpecc/issues",
+                "source": "https://github.com/paragonie/phpecc/tree/v2.5.0"
+            },
+            "time": "2025-07-19T01:25:49+00:00"
+        },
+        {
+            "name": "paragonie/sodium_compat",
+            "version": "v2.5.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/paragonie/sodium_compat.git",
+                "reference": "4714da6efdc782c06690bc72ce34fae7941c2d9f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/paragonie/sodium_compat/zipball/4714da6efdc782c06690bc72ce34fae7941c2d9f",
+                "reference": "4714da6efdc782c06690bc72ce34fae7941c2d9f",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1",
+                "php-64bit": "*"
+            },
+            "require-dev": {
+                "infection/infection": "^0",
+                "nikic/php-fuzzer": "^0",
+                "phpunit/phpunit": "^7|^8|^9|^10|^11",
+                "vimeo/psalm": "^4|^5|^6"
+            },
+            "suggest": {
+                "ext-sodium": "Better performance, password hashing (Argon2i), secure memory management (memzero), and better security."
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.0.x-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "autoload.php"
+                ],
+                "psr-4": {
+                    "ParagonIE\\Sodium\\": "namespaced/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "ISC"
+            ],
+            "authors": [
+                {
+                    "name": "Paragon Initiative Enterprises",
+                    "email": "security@paragonie.com"
+                },
+                {
+                    "name": "Frank Denis",
+                    "email": "jedisct1@pureftpd.org"
+                }
+            ],
+            "description": "Pure PHP implementation of libsodium; uses the PHP extension if it exists",
+            "keywords": [
+                "Authentication",
+                "BLAKE2b",
+                "ChaCha20",
+                "ChaCha20-Poly1305",
+                "Chapoly",
+                "Curve25519",
+                "Ed25519",
+                "EdDSA",
+                "Edwards-curve Digital Signature Algorithm",
+                "Elliptic Curve Diffie-Hellman",
+                "Poly1305",
+                "Pure-PHP cryptography",
+                "RFC 7748",
+                "RFC 8032",
+                "Salpoly",
+                "Salsa20",
+                "X25519",
+                "XChaCha20-Poly1305",
+                "XSalsa20-Poly1305",
+                "Xchacha20",
+                "Xsalsa20",
+                "aead",
+                "cryptography",
+                "ecdh",
+                "elliptic curve",
+                "elliptic curve cryptography",
+                "encryption",
+                "libsodium",
+                "php",
+                "public-key cryptography",
+                "secret-key cryptography",
+                "side-channel resistant"
+            ],
+            "support": {
+                "issues": "https://github.com/paragonie/sodium_compat/issues",
+                "source": "https://github.com/paragonie/sodium_compat/tree/v2.5.0"
+            },
+            "time": "2025-12-30T16:12:18+00:00"
         },
         {
             "name": "phpoption/phpoption",
@@ -6684,50 +6738,6 @@
                 }
             ],
             "time": "2024-11-21T01:49:47+00:00"
-        },
-        {
-            "name": "web3p/rlp",
-            "version": "0.3.5",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/web3p/rlp.git",
-                "reference": "d35f84b32b9cfdf2ee326e7f4ed7f8a0cf6d2faa"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/web3p/rlp/zipball/d35f84b32b9cfdf2ee326e7f4ed7f8a0cf6d2faa",
-                "reference": "d35f84b32b9cfdf2ee326e7f4ed7f8a0cf6d2faa",
-                "shasum": ""
-            },
-            "require": {
-                "ext-mbstring": "*",
-                "php": "^7.1 | ^8.0"
-            },
-            "require-dev": {
-                "phpunit/phpunit": "~7|~8.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Web3p\\RLP\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "sc0Vu",
-                    "email": "alk03073135@gmail.com"
-                }
-            ],
-            "description": "Recursive Length Prefix Encoding in PHP.",
-            "support": {
-                "issues": "https://github.com/web3p/rlp/issues",
-                "source": "https://github.com/web3p/rlp/tree/0.3.5"
-            },
-            "time": "2022-04-27T06:14:33+00:00"
         }
     ],
     "packages-dev": [
@@ -9111,7 +9121,9 @@
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
-        "php": "^8.2"
+        "php": "^8.2",
+        "ext-bcmath": "*",
+        "ext-gmp": "*"
     },
     "platform-dev": [],
     "plugin-api-version": "2.6.0"

@@ -10,28 +10,43 @@ use RuntimeException;
 
 class EthereumClient implements BlockchainClient
 {
-    protected string $infuraUrl;
-    protected string $projectId;
+//    protected string $infuraUrl;
+//    protected string $projectId;
 
-    public function __construct()
+    protected string $rpcUrl;
+    protected int $chainId;
+
+    /*
+        //--- method
+        Блоки: eth_blockNumber, eth_getBlockByNumber, eth_getBlockByHash.
+        Транзакции: eth_getTransactionByHash, eth_getTransactionReceipt.
+        Балансы: eth_getBalance (нативный токен), eth_call (для вызова контрактов).
+        Логи (события): eth_getLogs.
+        Отправка транзакций: eth_sendRawTransaction.
+
+        //--- params
+        Массивом (["0xадрес", "latest"] для eth_getBalance).
+        Объектом (в eth_getLogs передаётся объект с полями address, fromBlock, toBlock, topics).
+    */
+//    public function __construct()
+//    {
+//        $this->projectId = config('services.infura.project_id');
+//        if (empty($this->projectId)) {
+//            throw new RuntimeException('Infura project ID not configured');
+//        }
+//        $this->infuraUrl = "https://mainnet.infura.io/v3/{$this->projectId}";
+//    }
+    public function __construct(array $config)
     {
-        $this->projectId = config('services.infura.project_id');
-        if (empty($this->projectId)) {
-            throw new RuntimeException('Infura project ID not configured');
-        }
-        $this->infuraUrl = "https://mainnet.infura.io/v3/{$this->projectId}";
+        $this->rpcUrl = $config['rpc_url'];
+        $this->chainId = $config['chain_id'] ?? 1;
     }
-
     /**
      * Выполнить JSON-RPC запрос.
-     *
-     * @param string $method
-     * @param array $params
-     * @return mixed
      */
-    protected function request(string $method, array $params = [])
+    protected function request(string $method, array $params = []): mixed
     {
-        $response = Http::post($this->infuraUrl, [
+        $response = Http::post($this->rpcUrl, [
             'jsonrpc' => '2.0',
             'method'  => $method,
             'params'  => $params,
@@ -57,6 +72,24 @@ class EthereumClient implements BlockchainClient
         return $data['result'] ?? null;
     }
 
+    /**
+     * Конвертирует hex-строку в десятичную строку.
+     */
+    protected function hexToDec(string $hex): string
+    {
+        $hex = ltrim($hex, '0x');
+        return gmp_strval(gmp_init($hex, 16));
+    }
+
+    /**
+     * Дополняет адрес до 32 байт (64 символа) для использования в data/topics.
+     */
+    protected function padAddress(string $address): string
+    {
+        $address = ltrim($address, '0x');
+        return str_pad($address, 64, '0', STR_PAD_LEFT);
+    }
+
     public function getNativeBalance(string $address): string
     {
         $hexBalance = $this->request('eth_getBalance', [$address, 'latest']);
@@ -65,7 +98,7 @@ class EthereumClient implements BlockchainClient
 
     public function getTokenBalance(string $address, string $contractAddress): string
     {
-        // data: function selector balanceOf(address) + address
+        // data: function selector balanceOf(address) + адрес (32 байта)
         $data = '0x70a08231' . $this->padAddress($address);
         $hexBalance = $this->request('eth_call', [
             ['to' => $contractAddress, 'data' => $data],
@@ -76,7 +109,7 @@ class EthereumClient implements BlockchainClient
 
     public function sendNative(string $fromPrivateKey, string $to, float $amount): string
     {
-        // В реальном проекте здесь подписание транзакции и отправка
+        // В реальном проекте здесь подписание транзакции и отправка через eth_sendRawTransaction
         // Для тестового задания возвращаем заглушку
         return '0x' . bin2hex(random_bytes(32));
     }
@@ -89,10 +122,9 @@ class EthereumClient implements BlockchainClient
 
     public function getIncomingTokenTransactions(string $address, string $contractAddress, int $fromBlock, int $toBlock): array
     {
-        // Топик события Transfer(address indexed from, address indexed to, uint256 value)
+        // Хеш события Transfer
         $transferEventTopic = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3f';
-        // Топик для to (адрес получателя) – индексированный параметр, должен быть сдвинут влево до 32 байт
-        $toTopic = '0x' . str_pad(substr($address, 2), 64, '0', STR_PAD_LEFT);
+        $toTopic = '0x' . $this->padAddress($address);
 
         $logs = $this->request('eth_getLogs', [[
             'address'   => $contractAddress,
@@ -105,7 +137,7 @@ class EthereumClient implements BlockchainClient
         foreach ($logs as $log) {
             $transactions[] = [
                 'txid'        => $log['transactionHash'],
-                'from'        => '0x' . substr($log['topics'][1], 26), // убираем левый паддинг
+                'from'        => '0x' . substr($log['topics'][1], 26),
                 'to'          => $address,
                 'value'       => $this->hexToDec($log['data']),
                 'blockNumber' => hexdec($log['blockNumber']),
@@ -143,29 +175,5 @@ class EthereumClient implements BlockchainClient
             'number' => hexdec($block['number']),
             'hash'   => $block['hash'],
         ];
-    }
-
-    /**
-     * Конвертирует hex-строку (например, "0xde0b6b3a7640000") в десятичную строку.
-     *
-     * @param string $hex
-     * @return string
-     */
-    protected function hexToDec(string $hex): string
-    {
-        $hex = ltrim($hex, '0x');
-        return gmp_strval(gmp_init($hex, 16));
-    }
-
-    /**
-     * Дополняет адрес до 32 байт (64 символа) для использования в data.
-     *
-     * @param string $address
-     * @return string
-     */
-    protected function padAddress(string $address): string
-    {
-        $address = ltrim($address, '0x');
-        return str_pad($address, 64, '0', STR_PAD_LEFT);
     }
 }

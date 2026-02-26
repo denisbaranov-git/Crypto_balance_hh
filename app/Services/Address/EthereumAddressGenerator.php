@@ -1,6 +1,7 @@
 <?php
+// app/Services/Address/Generators/EthereumAddressGenerator.php
 
-namespace App\Services\AddressGenerators;
+namespace App\Services\Address;
 
 use App\Contracts\AddressGeneratorInterface;
 use Elliptic\EC;
@@ -21,7 +22,7 @@ class EthereumAddressGenerator implements AddressGeneratorInterface
 
         return [
             'private_key' => $privateKey,
-            'address' => $address,
+            'address'     => $address,
         ];
     }
 

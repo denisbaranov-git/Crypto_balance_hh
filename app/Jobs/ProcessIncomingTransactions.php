@@ -2,15 +2,15 @@
 
 namespace App\Jobs;
 
-use App\Models\CryptoTransaction;
 use App\Models\Wallet;
-use App\Services\CryptoService;
+use App\Models\CryptoTransaction;
+use App\Services\AccountService;
 use App\Contracts\BlockchainClient;
+use App\Services\Wallet\WalletCreationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class ProcessIncomingTransactions implements ShouldQueue
@@ -18,192 +18,188 @@ class ProcessIncomingTransactions implements ShouldQueue
     use Dispatchable, InteractsWithQueue, SerializesModels;
 
     /**
-     * Ключ для хранения данных о последнем обработанном блоке (номер и хеш).
+     * Размер чанка для сканирования (количество блоков за один запрос).
      */
-    private const LAST_BLOCK_DATA_KEY = 'usdt_last_processed_block_data';
-
-    /**
-     * Количество блоков, на которое откатываемся при реорганизации.
-     * Должно быть больше максимальной глубины реорга (обычно 1-2, но берём с запасом).
-     */
-    private const REORG_SAFE_DEPTH = 100;
+    private const SCAN_CHUNK_SIZE = 5000;
 
     /**
      * Количество подтверждений, после которых транзакция считается завершённой.
      */
     private const REQUIRED_CONFIRMATIONS = 12;
 
-    public function handle(BlockchainClient $client, CryptoService $accountService): void
-    {
+    public function handle(
+        BlockchainClient $client,
+        AccountService $accountService,
+        WalletCreationService $walletCreationService
+    ): void {
         $contractAddress = config('currencies.usdt.contract');
         if (empty($contractAddress)) {
             Log::error('USDT contract address not configured');
             return;
         }
 
-        // Получаем сохранённые данные о последнем обработанном блоке
-        $lastData = Cache::get(self::LAST_BLOCK_DATA_KEY, ['number' => 0, 'hash' => null]);
-        $lastBlockNumber = $lastData['number'];
-        $lastBlockHash = $lastData['hash'];
-
-        // Получаем текущий последний блок (номер и хеш)
-        $latestBlockData = $client->getLatestBlockData(); // ['number' => int, 'hash' => string]
-
-        // Проверяем, не было ли реорганизации, если у нас есть предыдущий хеш
-        if ($lastBlockHash !== null && $lastBlockNumber <= $latestBlockData['number']) {
-            $currentBlockAtLastNumber = $client->getBlockByNumber($lastBlockNumber);
-            // Если блок с таким номером существует и его хеш не совпадает с сохранённым
-            if ($currentBlockAtLastNumber && $currentBlockAtLastNumber['hash'] !== $lastBlockHash) {
-                Log::info('Reorg detected at block ' . $lastBlockNumber . ', rolling back ' . self::REORG_SAFE_DEPTH . ' blocks');
-                // Откатываемся на безопасную глубину
-                $newStartBlock = max(0, $lastBlockNumber - self::REORG_SAFE_DEPTH);
-                // Отменяем все транзакции, которые были в блоках выше $newStartBlock
-                $this->rollbackTransactionsFrom($newStartBlock + 1, $accountService);
-                $lastBlockNumber = $newStartBlock;
-                // Хеш для нового стартового блока мы получим позже, при сохранении
-            }
-        }
-
-        // Теперь обычное сканирование новых блоков
-        $fromBlock = $lastBlockNumber + 1;
-        $toBlock = $latestBlockData['number'];
-
-        if ($fromBlock > $toBlock) {
-            // Нет новых блоков, но нужно сохранить актуальный хеш последнего блока
-            $this->updateLastBlockData($latestBlockData['number'], $latestBlockData['hash'], $client);
-            return;
-        }
-
-        Log::info("Scanning blocks from $fromBlock to $toBlock");
-
-        // Получаем все кошельки USDT с адресами
+        // Получаем все кошельки USDT, требующие сканирования
+        $latestBlock = $client->getLatestBlock();
         $wallets = Wallet::where('currency', 'USDT')
             ->whereNotNull('address')
             ->get()
-            ->keyBy('address'); // для быстрого поиска
+            ->filter(fn(Wallet $w) => $w->needsScanning($latestBlock));
 
-        if ($wallets->isEmpty()) {
-            // Если нет кошельков, просто обновляем последний блок
-            $this->updateLastBlockData($toBlock, $latestBlockData['hash'], $client);
-            return;
+        foreach ($wallets as $wallet) {
+            $this->scanWallet($wallet, $client, $accountService, $contractAddress, $latestBlock);
         }
 
-        $maxProcessedBlock = $fromBlock - 1;
-
-        // Для каждого адреса получаем входящие транзакции
-        // В реальном проекте лучше использовать один запрос для всех адресов,
-        // но для простоты оставим цикл.
-        foreach ($wallets as $address => $wallet) {
-            try {
-                $transactions = $client->getIncomingTokenTransactions(
-                    $address,
-                    $contractAddress,
-                    $fromBlock,
-                    $toBlock
-                );
-
-                foreach ($transactions as $txData) {
-                    // Проверяем, есть ли уже такая транзакция
-                    $exists = $wallet->transactions()
-                        ->where('txid', $txData['txid'])
-                        ->exists();
-
-                    if ($exists) {
-                        continue;
-                    }
-
-                    // Конвертируем сумму из минимальных единиц в основные
-                    $amount = bcdiv(
-                        $txData['value'],
-                        bcpow('10', (string)$wallet->decimals, 0),
-                        $wallet->decimals
-                    );
-
-                    $metadata = [
-                        'block' => $txData['blockNumber'],
-                        'from'  => $txData['from'] ?? null,
-                        'contract' => $contractAddress,
-                    ];
-
-                    // Зачисляем средства (статус pending)
-                    $transaction = $accountService->deposit(
-                        $wallet,
-                        $amount,
-                        $txData['txid'],
-                        $metadata
-                    );
-
-                    Log::info('Incoming USDT credited', [
-                        'wallet_id' => $wallet->id,
-                        'txid'      => $txData['txid'],
-                        'amount'    => $amount,
-                    ]);
-
-                    if ($txData['blockNumber'] > $maxProcessedBlock) {
-                        $maxProcessedBlock = $txData['blockNumber'];
-                    }
-                }
-            } catch (\Exception $e) {
-                Log::error('Error processing incoming transactions for wallet', [
-                    'wallet_id' => $wallet->id,
-                    'error'     => $e->getMessage(),
-                ]);
-            }
-        }
-
-        // Определяем, какой блок считать последним обработанным
-        // Если были транзакции, используем максимальный номер блока среди них, иначе используем toBlock
-        $newLastBlock = ($maxProcessedBlock >= $fromBlock) ? $maxProcessedBlock : $toBlock;
-        $this->updateLastBlockData($newLastBlock, null, $client);
+        // Также проверяем подтверждения для pending-транзакций
+        $this->checkConfirmations($client, $accountService, $latestBlock);
     }
 
     /**
-     * Сохраняет в кеше данные о последнем обработанном блоке.
-     * Если хеш не передан, получает его через клиент.
-     *
-     * @param int $blockNumber
-     * @param string|null $blockHash
-     * @param BlockchainClient $client
+     * Сканирует один кошелёк, разбивая диапазон на чанки.
      */
-    private function updateLastBlockData(int $blockNumber, ?string $blockHash, BlockchainClient $client): void
-    {
-        if ($blockHash === null) {
-            $blockData = $client->getBlockByNumber($blockNumber);
-            $blockHash = $blockData['hash'] ?? null;
+    private function scanWallet(
+        Wallet $wallet,
+        BlockchainClient $client,
+        AccountService $accountService,
+        string $contractAddress,
+        int $latestBlock
+    ): void {
+        $fromBlock = ($wallet->last_scanned_block ?? 0) + 1;
+        $toBlock = $latestBlock;
+
+        if ($fromBlock > $toBlock) {
+            return;
         }
-        Cache::put(self::LAST_BLOCK_DATA_KEY, [
-            'number' => $blockNumber,
-            'hash'   => $blockHash,
+
+        // Проверка реорганизации перед началом сканирования
+        if ($wallet->last_scanned_block_hash) {
+            $savedBlock = $client->getBlockByNumber($wallet->last_scanned_block);
+            if (!$savedBlock || $savedBlock['hash'] !== $wallet->last_scanned_block_hash) {
+                Log::info('Reorg detected for wallet', ['wallet_id' => $wallet->id]);
+                $this->rollbackWallet($wallet, $client, $accountService);
+                $fromBlock = ($wallet->last_scanned_block ?? 0) + 1;
+            }
+        }
+
+        $currentStart = $fromBlock;
+
+        while ($currentStart <= $toBlock) {
+            $currentEnd = min($currentStart + self::SCAN_CHUNK_SIZE - 1, $toBlock);
+
+            try {
+                $transactions = $client->getIncomingTokenTransactions(
+                    $wallet->address,
+                    $contractAddress,
+                    $currentStart,
+                    $currentEnd
+                );
+
+                foreach ($transactions as $txData) {
+                    $this->processTransaction($wallet, $txData, $accountService);
+                }
+
+                // Обновляем прогресс
+                $wallet->last_scanned_block = $currentEnd;
+                $wallet->save();
+
+                // Небольшая пауза для соблюдения rate limits
+                if ($currentEnd < $toBlock) {
+                    sleep(1);
+                }
+
+            } catch (\Exception $e) {
+                Log::error('Scan chunk failed', [
+                    'wallet_id' => $wallet->id,
+                    'from'      => $currentStart,
+                    'to'        => $currentEnd,
+                    'error'     => $e->getMessage(),
+                ]);
+                // Прерываем сканирование этого кошелька, прогресс сохранён до последнего успешного чанка
+                break;
+            }
+
+            $currentStart = $currentEnd + 1;
+        }
+
+        // После завершения сохраняем хеш последнего блока
+        $lastBlockData = $client->getBlockByNumber($wallet->last_scanned_block);
+        if ($lastBlockData) {
+            $wallet->last_scanned_block_hash = $lastBlockData['hash'];
+            $wallet->save();
+        }
+    }
+
+    /**
+     * Обрабатывает одну найденную транзакцию.
+     */
+    private function processTransaction(Wallet $wallet, array $txData, AccountService $accountService): void
+    {
+        // Проверка на дубликат
+        $exists = $wallet->transactions()
+            ->where('txid', $txData['txid'])
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        // Конвертация суммы
+        $amount = bcdiv(
+            $txData['value'],
+            bcpow('10', (string)$wallet->decimals, 0),
+            $wallet->decimals
+        );
+
+        $metadata = [
+            'block' => $txData['blockNumber'],
+            'from'  => $txData['from'],
+        ];
+
+        $accountService->deposit($wallet, $amount, $txData['txid'], $metadata);
+
+        Log::info('Deposit processed', [
+            'wallet_id' => $wallet->id,
+            'txid'      => $txData['txid'],
+            'amount'    => $amount,
         ]);
     }
 
     /**
-     * Откатывает все транзакции, которые были созданы из блоков с номером >= $fromBlock.
-     * Для каждой такой транзакции вызываем cancelTransaction().
-     *
-     * @param int $fromBlock
-     * @param CryptoService $accountService
+     * Откатывает кошелёк при реорганизации.
      */
-    private function rollbackTransactionsFrom(int $fromBlock, CryptoService $accountService): void
+    private function rollbackWallet(Wallet $wallet, BlockchainClient $client, AccountService $accountService): void
     {
-        // Находим все транзакции со статусом 'pending', у которых в metadata указан block >= $fromBlock
-        $transactions = CryptoTransaction::where('status', 'pending')
+        // Находим все pending-транзакции с номером блока > последнего стабильного
+        $affectedTransactions = CryptoTransaction::where('wallet_id', $wallet->id)
+            ->where('status', 'pending')
             ->whereNotNull('metadata->block')
-            ->where('metadata->block', '>=', $fromBlock)
+            ->where('metadata->block', '>', $wallet->last_scanned_block)
             ->get();
 
-        foreach ($transactions as $transaction) {
-            try {
-                $accountService->cancelTransaction($transaction);
-                Log::info('Transaction cancelled due to reorg', [
-                    'txid' => $transaction->txid,
-                    'block' => $transaction->metadata['block'] ?? null,
-                ]);
-            } catch (\Exception $e) {
-                Log::error('Failed to cancel transaction during reorg', [
-                    'transaction_id' => $transaction->id,
-                    'error'          => $e->getMessage(),
-                ]);
+        foreach ($affectedTransactions as $transaction) {
+            $accountService->cancelTransaction($transaction);
+        }
+
+        // Возвращаемся на безопасный блок (например, на 100 блоков назад)
+        $newStart = max(0, $wallet->last_scanned_block - 100);
+        $wallet->last_scanned_block = $newStart;
+        $wallet->last_scanned_block_hash = null;
+        $wallet->save();
+    }
+
+    /**
+     * Проверяет подтверждения для pending-транзакций.
+     */
+    private function checkConfirmations(BlockchainClient $client, AccountService $accountService, int $latestBlock): void
+    {
+        $pendingTxs = CryptoTransaction::where('status', 'pending')
+            ->whereNotNull('metadata->block')
+            ->get();
+
+        foreach ($pendingTxs as $tx) {
+            $txBlock = $tx->metadata['block'] ?? 0;
+            if ($latestBlock - $txBlock >= self::REQUIRED_CONFIRMATIONS) {
+                $accountService->confirmTransaction($tx, $tx->txid);
+                Log::info('Transaction confirmed', ['txid' => $tx->txid]);
             }
         }
     }

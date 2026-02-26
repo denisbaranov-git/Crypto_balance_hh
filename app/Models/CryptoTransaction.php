@@ -31,4 +31,16 @@ class CryptoTransaction extends Model
     {
         return $this->belongsTo(Wallet::class);
     }
+    public function isConfirmed(): bool
+    {
+        return $this->status === 'completed';
+    }
+
+    /**
+     * Транзакция ожидает подтверждения.
+     */
+    public function isPending(): bool
+    {
+        return $this->status === 'pending';
+    }
 }
