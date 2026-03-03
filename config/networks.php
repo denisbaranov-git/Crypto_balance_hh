@@ -9,7 +9,7 @@ return [
         'explorer' => 'https://etherscan.io',
         'type' => 'evm',
         'finalized ' => true,
-
+        'requests_frequency' => 120, //requests transaction confirmation
     ],
     'bsc' => [
         'name' => 'Binance Smart Chain',
@@ -19,6 +19,7 @@ return [
         'explorer' => 'https://bscscan.com',
         'type' => 'evm',
         'finalized ' => true,
+        'requests_frequency' => 120,
     ],
     'polygon' => [
         'name' => 'Polygon Mainnet',
@@ -28,7 +29,7 @@ return [
         'explorer' => 'https://polygonscan.com',
         'type' => 'evm',
         'finalized ' => true,
-
+        'requests_frequency' => 120,
     ],
     'tron' => [
         'name' => 'Tron Mainnet',
@@ -40,6 +41,7 @@ return [
         'native_currency' => 'TRX',
         'type' => 'tron',
         'finalized ' => false,
+        'requests_frequency' => 120,
     ],
     'tron_shasta' => [
         'name' => 'Tron Shasta Testnet',
@@ -52,5 +54,6 @@ return [
         'type' => 'tron',
         'testnet' => true,
         'finalized ' => false,
+        'requests_frequency' => 120,
     ],
 ];

@@ -19,7 +19,7 @@ class SendWithdrawalJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, SerializesModels;
 
     public $tries = 3;
-    public $backoff = [5, 15, 60];
+    public $backoff = [5, 15, 60]; // Интервалы между попытками (секунды)
 
     public function __construct(
         private readonly CryptoTransaction $transaction,
