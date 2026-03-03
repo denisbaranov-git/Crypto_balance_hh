@@ -1,35 +1,45 @@
 <?php
+// app/Providers/AppServiceProvider.php
 
 namespace App\Providers;
 
-use App\Contracts\BlockchainClient;
+use App\Contracts\AddressGeneratorInterface;
 use App\Services\Address\AddressGeneratorFactory;
 use App\Services\Address\EthereumAddressGenerator;
 use App\Services\Address\TronAddressGenerator;
 use App\Services\Blockchain\BlockchainClientFactory;
 use App\Services\Blockchain\EthereumClient;
+use App\Services\Blockchain\TronClient;
 use App\Services\TokenConfigService;
 use Illuminate\Support\ServiceProvider;
-use App\Contracts\AddressGeneratorInterface;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
-        $this->app->bind(BlockchainClient::class, EthereumClient::class);
-        // Address generators
         $this->app->bind(AddressGeneratorInterface::class . ':ETH', EthereumAddressGenerator::class);
-        $this->app->bind(AddressGeneratorInterface::class . ':tron', TronAddressGenerator::class);
-        // Фабрика генераторов адресов
+        $this->app->bind(AddressGeneratorInterface::class . ':TRON', TronAddressGenerator::class);
+        // $this->app->bind(AddressGeneratorInterface::class . ':BSC', BscAddressGenerator::class);
+        // $this->app->bind(AddressGeneratorInterface::class . ':SOLANA', SolanaAddressGenerator::class);
+
         $this->app->singleton(AddressGeneratorFactory::class, function ($app) {
             return new AddressGeneratorFactory([
-                'ETH'  => AddressGeneratorInterface::class . ':ETH',
-                'USDT' => AddressGeneratorInterface::class . ':ETH', // USDT использует Ethereum-адреса
+                'ETH' => AddressGeneratorInterface::class . ':ETH',
+                'TRX' => AddressGeneratorInterface::class . ':TRON',
+
+                'USDT' => [
+                    'ethereum' => AddressGeneratorInterface::class . ':ETH',
+                    'tron'     => AddressGeneratorInterface::class . ':TRON',
+                    'bsc'      => AddressGeneratorInterface::class . ':ETH',
+                ],
+                'USDC' => [
+                    'ethereum' => AddressGeneratorInterface::class . ':ETH',
+                    'bsc'      => AddressGeneratorInterface::class . ':ETH',
+                ],
+                'BNB' => AddressGeneratorInterface::class . ':ETH',
             ]);
         });
+
         $this->app->singleton(BlockchainClientFactory::class, function ($app) {
             return new BlockchainClientFactory(
                 $app->make(TokenConfigService::class),
@@ -41,13 +51,9 @@ class AppServiceProvider extends ServiceProvider
                 ]
             );
         });
-    }
 
-    /**
-     * Bootstrap any application services.
-     */
-    public function boot(): void
-    {
-        //
+        $this->app->singleton(TokenConfigService::class, function ($app) {
+            return new TokenConfigService();
+        });
     }
 }

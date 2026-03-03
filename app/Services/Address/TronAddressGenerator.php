@@ -1,11 +1,11 @@
 <?php
-// app/Services/Address/Generators/TronAddressGenerator.php
 
 namespace App\Services\Address;
 
 use App\Contracts\AddressGeneratorInterface;
 use App\Services\Blockchain\TronClient;
-use Trx\TronClient;
+use IEXBase\TronAPI\Tron;
+use IEXBase\TronAPI\Exception\TronException;
 
 class TronAddressGenerator implements AddressGeneratorInterface
 {
@@ -13,7 +13,7 @@ class TronAddressGenerator implements AddressGeneratorInterface
 
     public function __construct()
     {
-        $this->client = new TronClient(env('TRONGRID_API_KEY'));
+        $this->client = new Tron(env('TRONGRID_API_KEY'));
     }
 
     public function generate(array $options = []): array

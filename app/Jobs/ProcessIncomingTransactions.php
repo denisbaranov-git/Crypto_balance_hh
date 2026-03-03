@@ -6,6 +6,7 @@ use App\Models\Wallet;
 use App\Models\CryptoTransaction;
 use App\Services\AccountService;
 use App\Contracts\BlockchainClient;
+use App\Services\TokenConfigService;
 use App\Services\Wallet\WalletCreationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -22,31 +23,55 @@ class ProcessIncomingTransactions implements ShouldQueue
      */
     private const SCAN_CHUNK_SIZE = 5000;
 
-    /**
-     * Количество подтверждений, после которых транзакция считается завершённой.
-     */
-    private const REQUIRED_CONFIRMATIONS = 12;
-
+    public function __construct(
+        private TokenConfigService $tokenConfigService
+    ) {}
     public function handle(
         BlockchainClient $client,
         AccountService $accountService,
-        WalletCreationService $walletCreationService
+        WalletCreationService $walletCreationService,
     ): void {
-        $contractAddress = config('currencies.usdt.contract');
-        if (empty($contractAddress)) {
-            Log::error('USDT contract address not configured');
-            return;
-        }
 
-        // Получаем все кошельки USDT, требующие сканирования
+        //$threshold	Частота сканирования	Риск пропустить транзакцию
+        //1	Каждый блок (12 сек)	            Минимальный	Огромная нагрузка
+        //10	        ~2 минуты	            Низкий	Приемлемо
+        //100       	~20 минут	            Средний	Экономично
+        //1000      	~3.5 часа	            Высокий	Очень экономично
+        //100 блоков в Ethereum ≈ 20 минут (12 секунд на блок × 100)
+        // need progressive scanning that depend balance and activities of user (last_activity) //denis
+
         $latestBlock = $client->getLatestBlock();
-        $wallets = Wallet::where('currency', 'USDT')
-            ->whereNotNull('address')
+
+        $wallets = Wallet::whereNotNull('address')
             ->get()
             ->filter(fn(Wallet $w) => $w->needsScanning($latestBlock));
 
         foreach ($wallets as $wallet) {
-            $this->scanWallet($wallet, $client, $accountService, $contractAddress, $latestBlock);
+            // Получаем конфигурацию для этой валюты и сети
+            $config = $this->tokenConfigService->getTokenNetworkConfig(
+                $wallet->currency,
+                $wallet->network
+            );
+
+            if (!$config) {
+                Log::warning('No config for wallet', [
+                    'wallet_id' => $wallet->id,
+                    'currency' => $wallet->currency,
+                    'network' => $wallet->network
+                ]);
+                continue;
+            }
+
+            // Для нативных токенов (ETH, BNB, TRX) нет контракта
+            $contractAddress = $config['contract'] ?? null;
+
+            if ($contractAddress) {
+                // Это токен (USDT, USDC и т.д.)
+                $this->scanWallet($wallet, $client, $accountService, $contractAddress, $latestBlock);
+            } else {
+                // Это нативный токен (ETH, BNB, TRX)
+                $this->scanNativeWallet($wallet, $client, $accountService, $latestBlock);
+            }
         }
 
         // Также проверяем подтверждения для pending-транзакций
@@ -74,6 +99,7 @@ class ProcessIncomingTransactions implements ShouldQueue
         if ($wallet->last_scanned_block_hash) {
             $savedBlock = $client->getBlockByNumber($wallet->last_scanned_block);
             if (!$savedBlock || $savedBlock['hash'] !== $wallet->last_scanned_block_hash) {
+                //denis здесь нужно срочно блокировать аккаут пользователя что бы не было ДВОЙНОЙ ТРАТЫ!!!!!! До разбора событий. Также уведомление Push, sms, mail etc
                 Log::info('Reorg detected for wallet', ['wallet_id' => $wallet->id]);
                 $this->rollbackWallet($wallet, $client, $accountService);
                 $fromBlock = ($wallet->last_scanned_block ?? 0) + 1;
@@ -197,8 +223,12 @@ class ProcessIncomingTransactions implements ShouldQueue
 
         foreach ($pendingTxs as $tx) {
             $txBlock = $tx->metadata['block'] ?? 0;
-            if ($latestBlock - $txBlock >= self::REQUIRED_CONFIRMATIONS) {
-                $accountService->confirmTransaction($tx, $tx->txid);
+            if ($latestBlock - $txBlock >= self::REQUIRED_CONFIRMATIONS) { ////$config['confirmation_blocks']
+                // Дополнительно проверить receipt (успех/неудача)
+                $receipt = $client->getTransactionReceipt($tx->txid);
+                if ($receipt && $receipt['status'] === '0x1') {
+                    $accountService->confirmTransaction($tx, $tx->txid);
+                }
                 Log::info('Transaction confirmed', ['txid' => $tx->txid]);
             }
         }

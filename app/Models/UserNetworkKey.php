@@ -9,7 +9,7 @@ class UserNetworkKey extends Model
     protected $fillable = ['user_id', 'network', 'encrypted_private_key', 'address'];
 
     protected $casts = [
-        'encrypted_private_key' => 'encrypted', // если используется шифрование Laravel
+        'encrypted_private_key' => 'encrypted', // Laravel auto encode/decode
     ];
 
     public function user()

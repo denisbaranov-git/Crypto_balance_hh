@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e68630f1d8fd8d11e8f2086d43e50bcd",
+    "content-hash": "6d641a98aea6210427cee69dac77b064",
     "packages": [
         {
             "name": "brick/math",
@@ -1131,54 +1131,6 @@
                 }
             ],
             "time": "2025-08-22T14:27:06+00:00"
-        },
-        {
-            "name": "just-luka/php-tron",
-            "version": "v1.1.1",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/just-Luka/php-tron.git",
-                "reference": "1f059dda09972f8f8a811e8b8a96cb1531ccda9b"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/just-Luka/php-tron/zipball/1f059dda09972f8f8a811e8b8a96cb1531ccda9b",
-                "reference": "1f059dda09972f8f8a811e8b8a96cb1531ccda9b",
-                "shasum": ""
-            },
-            "require": {
-                "ext-curl": "*",
-                "ext-gmp": "*",
-                "kornrunner/secp256k1": "^0.3",
-                "php": ">=8.2",
-                "simplito/elliptic-php": "^1.0.12"
-            },
-            "require-dev": {
-                "monolog/monolog": "^3.0",
-                "phpunit/phpunit": "*"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Trx\\": "src/Trx/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Luka T.",
-                    "email": "info.tsiklauri@gmail.com"
-                }
-            ],
-            "description": "PHP package for interacting with TRX network",
-            "support": {
-                "issues": "https://github.com/just-Luka/php-tron/issues",
-                "source": "https://github.com/just-Luka/php-tron/tree/v1.1.1"
-            },
-            "time": "2025-03-17T17:35:11+00:00"
         },
         {
             "name": "kornrunner/keccak",
@@ -4026,6 +3978,79 @@
             "time": "2024-01-09T14:57:04+00:00"
         },
         {
+            "name": "sultanov-solutions/tron-api",
+            "version": "5.0.10",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/sultanov-solutions/tron-api.git",
+                "reference": "5ab2bd5dcd6ecf2a85a97cf5e15f34f964a9d09d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/sultanov-solutions/tron-api/zipball/5ab2bd5dcd6ecf2a85a97cf5e15f34f964a9d09d",
+                "reference": "5ab2bd5dcd6ecf2a85a97cf5e15f34f964a9d09d",
+                "shasum": ""
+            },
+            "require": {
+                "ext-bcmath": "*",
+                "ext-gmp": "*",
+                "ext-json": "*",
+                "ext-mbstring": "*",
+                "guzzlehttp/guzzle": "^7.2",
+                "kornrunner/secp256k1": "^0.3",
+                "php": "^8.1",
+                "simplito/elliptic-php": "^1.0",
+                "web3p/web3.php": "^0.1.6"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.6 || ^10.5 || ^11.0"
+            },
+            "suggest": {
+                "illuminate/cache": "^12.0 for API key rotation persistence",
+                "illuminate/http": "^12.0 for Laravel Http client adapter",
+                "illuminate/support": "^12.0 for Laravel integration (provider, manager)"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "Tron": "IEXBase\\TronAPI\\Laravel\\Facades\\Tron"
+                    },
+                    "providers": [
+                        "IEXBase\\TronAPI\\Laravel\\TronServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "IEXBase\\TronAPI\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Sultanov Solutions",
+                    "email": "info@sultanov-solutions.com"
+                }
+            ],
+            "description": "A PHP API for interacting with Tron (Trx)",
+            "homepage": "https://github.com/sultanov-solutions/tron-api",
+            "keywords": [
+                "iexbase",
+                "tron-api",
+                "tron-lib",
+                "tron-php",
+                "tron-rest-api"
+            ],
+            "support": {
+                "source": "https://github.com/sultanov-solutions/tron-api/tree/5.0.10"
+            },
+            "time": "2025-08-31T21:26:35+00:00"
+        },
+        {
             "name": "symfony/clock",
             "version": "v7.4.0",
             "source": {
@@ -6738,6 +6763,53 @@
                 }
             ],
             "time": "2024-11-21T01:49:47+00:00"
+        },
+        {
+            "name": "web3p/web3.php",
+            "version": "0.1.6",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/web3p/web3.php.git",
+                "reference": "2eafffbbe50b79b819088c6a72baf3780d672e11"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/web3p/web3.php/zipball/2eafffbbe50b79b819088c6a72baf3780d672e11",
+                "reference": "2eafffbbe50b79b819088c6a72baf3780d672e11",
+                "shasum": ""
+            },
+            "require": {
+                "ext-mbstring": "*",
+                "guzzlehttp/guzzle": "^6.3|^7.0",
+                "kornrunner/keccak": "~1.0",
+                "php": "^7.2|^8.0",
+                "phpseclib/phpseclib": "~2.0.30"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "~8.0|~9.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Web3\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "sc0Vu",
+                    "email": "alk03073135@gmail.com"
+                }
+            ],
+            "description": "Ethereum web3 interface.",
+            "support": {
+                "issues": "https://github.com/web3p/web3.php/issues",
+                "source": "https://github.com/web3p/web3.php/tree/0.1.6"
+            },
+            "time": "2022-03-07T03:26:51+00:00"
         }
     ],
     "packages-dev": [

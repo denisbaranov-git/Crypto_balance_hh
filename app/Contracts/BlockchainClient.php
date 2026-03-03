@@ -1,5 +1,4 @@
 <?php
-// app/Contracts/BlockchainClient.php
 
 namespace App\Contracts;
 
@@ -24,21 +23,21 @@ interface BlockchainClient
      * Отправить нативные монеты.
      * @param string $fromPrivateKey Приватный ключ отправителя (hex).
      * @param string $to
-     * @param float $amount Сумма в основных единицах (например, ETH).
+     * @param string $amount Сумма в основных единицах (например, ETH).
      * @return string TXID
      */
-    public function sendNative(string $fromPrivateKey, string $to, float $amount): string;
+    public function sendNative(string $fromPrivateKey, string $to, string $amount): string;
 
     /**
      * Отправить токены (ERC-20).
      * @param string $fromPrivateKey
      * @param string $to
-     * @param float $amount Сумма в основных единицах (например, USDT).
+     * @param string $amount Сумма в основных единицах (например, USDT).
      * @param string $contractAddress
      * @param int $decimals Количество знаков после запятой.
      * @return string TXID
      */
-    public function sendToken(string $fromPrivateKey, string $to, float $amount, string $contractAddress, int $decimals): string;
+    public function sendToken(string $fromPrivateKey, string $to, string $amount, string $contractAddress, int $decimals): string;
 
     /**
      * Получить входящие транзакции токена для адреса в диапазоне блоков.

@@ -32,9 +32,7 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
-    protected $casts = [
-        'crypto_private_keys' => 'encrypted', // Laravel автоматически шифрует/дешифрует
-    ];
+
     /**
      * Get the attributes that should be cast.
      *
@@ -51,5 +49,13 @@ class User extends Authenticatable
     public function wallets()
     {
         return $this->hasMany(Wallet::class);
+    }
+
+    public function networkKeys(){
+        return $this->hasMany(UserNetworkKey::class);
+    }
+    public function getNetworkKey(string $network): ?UserNetworkKey
+    {
+        return $this->networkKeys()->where('network', $network)->first();
     }
 }

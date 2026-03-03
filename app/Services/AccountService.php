@@ -8,6 +8,7 @@ use App\Models\CryptoTransaction;
 use App\Enums\TransactionTypeEnum;
 use App\Services\Blockchain\BlockchainClientFactory;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class AccountService
@@ -73,25 +74,49 @@ class AccountService
     public function cancelTransaction(CryptoTransaction $transaction): void
     {
         DB::transaction(function () use ($transaction) {
+
             $transaction = CryptoTransaction::where('id', $transaction->id)->lockForUpdate()->first();
 
             if ($transaction->status !== 'pending') {
                 return;
             }
 
+            $wallet = Wallet::where('id', $transaction->wallet_id)->lockForUpdate()->first();
+
             // Если транзакция уменьшала баланс (withdraw, fee) – восстанавливаем
-            if (in_array($transaction->type, [
-                TransactionTypeEnum::WITHDRAW->value,
-                TransactionTypeEnum::FEE->value
-            ], true)) {
-                $wallet = Wallet::where('id', $transaction->wallet_id)->lockForUpdate()->first();
+
+            // Определяем, увеличивала или уменьшала транзакция баланс
+            $isCredit = in_array($transaction->type, [
+                TransactionTypeEnum::DEPOSIT->value,
+                TransactionTypeEnum::REFUND->value
+            ], true);
+
+            if ($isCredit) {
+                // Для депозитов проверяем, что средства ещё есть
+                if (bccomp($wallet->balance, $transaction->amount, self::SCALE) < 0) {
+                    throw new \RuntimeException(
+                        "Cannot cancel {$transaction->type}: insufficient balance. " .
+                        "Need: {$transaction->amount}, Have: {$wallet->balance}"
+                    );
+                }
+                $newBalance = bcsub($wallet->balance, $transaction->amount, self::SCALE);
+            } else {
+                // Транзакция уменьшала баланс (withdraw/fee) → восстанавливаем
                 $newBalance = bcadd($wallet->balance, $transaction->amount, self::SCALE);
-                $wallet->balance = $newBalance;
-                $wallet->save();
             }
+
+            $wallet->balance = $newBalance;
+            $wallet->save();
 
             $transaction->status = 'cancelled';
             $transaction->save();
+
+            Log::info('Transaction cancelled', [
+                'transaction_id' => $transaction->id,
+                'type' => $transaction->type,
+                'amount' => $transaction->amount,
+                'new_balance' => $newBalance
+            ]);
         });
     }
 

@@ -4,6 +4,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendWithdrawalJob;
+use App\Rules\SupportedNetwork;
 use App\Services\AccountService;
 use App\Services\Wallet\WalletCreationService;
 use App\Models\Wallet;
@@ -47,12 +49,14 @@ class WalletController extends Controller
     {
         $request->validate([
             'currency' => 'required|string',
-            'amount' => 'required|string', // строка для точности
+            'network' => ['required|string',new SupportedNetwork], //Rule::in(array_keys(config('networks'))),
+            'amount' => 'required|string',
             'to_address' => 'required|string',
         ]);
 
         $wallet = Auth::user()->wallets()
             ->where('currency', $request->currency)
+            ->where('network',$request->network)
             ->firstOrFail();
 
         try {

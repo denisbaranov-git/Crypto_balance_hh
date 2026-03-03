@@ -1,5 +1,4 @@
 <?php
-// app/Services/TokenConfigService.php
 
 namespace App\Services;
 

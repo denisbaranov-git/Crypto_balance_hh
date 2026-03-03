@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\CryptoTransaction;
 use App\Services\AccountService;
 use App\Services\Blockchain\BlockchainClientFactory;
+use App\Services\TokenConfigService;
 use App\Services\Wallet\WalletCreationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -20,12 +21,10 @@ class SendWithdrawalJob implements ShouldQueue
     public $tries = 3;
     public $backoff = [5, 15, 60];
 
-    protected CryptoTransaction $transaction;
-
-    public function __construct(CryptoTransaction $transaction)
-    {
-        $this->transaction = $transaction;
-    }
+    public function __construct(
+        private readonly CryptoTransaction $transaction,
+        private readonly TokenConfigService $tokenConfigService
+    ){}
 
     public function handle(
         BlockchainClientFactory $clientFactory,
@@ -42,10 +41,12 @@ class SendWithdrawalJob implements ShouldQueue
         }
 
         $wallet = $transaction->wallet;
+        $user = $wallet->user;
         if (!$wallet) {
             throw new RuntimeException("Wallet not found for transaction {$transaction->id}");
         }
 
+        $currency = $wallet->currency;
         $network = $wallet->network;
         $toAddress = $transaction->metadata['to'] ?? null;
 
@@ -56,27 +57,24 @@ class SendWithdrawalJob implements ShouldQueue
         try {
             $client = $clientFactory->make($network);
 
-            $privateKey = $walletCreator->getPrivateKey(
-                $wallet->user,
-                $wallet->currency,
-                $network
-            );
+            $privateKey = $user->getNetworkKey($network);
 
             if (!$privateKey) {
                 throw new RuntimeException('Private key not found');
             }
 
-            if ($wallet->currency === $this->getNativeCurrency($network)) {
+            $config = $this->tokenConfigService->getTokenNetworkConfig($currency, $network );
+
+            if ($wallet->currency === $config['native_currency']) {
                 $txid = $client->sendNative(
                     $privateKey,
                     $toAddress,
                     $transaction->amount // строка
                 );
             } else {
-                $config = $wallet->tokenConfig;
                 if (!$config) {
                     throw new RuntimeException(
-                        "Token configuration not found for {$wallet->currency} on {$network}"
+                        "Token configuration not found for {$currency} on {$network}"
                     );
                 }
 
@@ -96,6 +94,8 @@ class SendWithdrawalJob implements ShouldQueue
             $transaction->txid = $txid;
             $transaction->save();
 
+            ConfirmTransactionJob::dispatch($transaction)->delay(now()->addMinutes(2));
+
             Log::info('Withdrawal transaction sent successfully', [
                 'transaction_id' => $transaction->id,
                 'txid' => $txid,
@@ -109,7 +109,7 @@ class SendWithdrawalJob implements ShouldQueue
                 'attempt' => $this->attempts()
             ]);
 
-            if ($this->attempts() >= $this->tries) {
+            if ($this->attempts() >= $this->tries) {// не отправили ноде
                 // Отменяем транзакцию и возвращаем средства
                 $accountService->cancelTransaction($transaction);
                 Log::warning('Withdrawal cancelled after max attempts', [
@@ -119,10 +119,5 @@ class SendWithdrawalJob implements ShouldQueue
 
             throw $e;
         }
-    }
-
-    private function getNativeCurrency(string $network): string
-    {
-        return config("networks.{$network}.native_currency", 'ETH');
     }
 }

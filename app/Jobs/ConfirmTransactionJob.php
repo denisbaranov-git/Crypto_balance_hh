@@ -3,104 +3,87 @@
 namespace App\Jobs;
 
 use App\Models\CryptoTransaction;
-use App\Contracts\BlockchainClient;
-use App\Services\Wallet\WalletCreationService;
 use App\Services\AccountService;
+use App\Services\Blockchain\BlockchainClientFactory;
+use App\Services\TokenConfigService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class ConfirmTransactionJob
+class ConfirmTransactionJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, SerializesModels;
-    protected CryptoTransaction $transaction;
-    public function __construct(CryptoTransaction $transaction)
-    {
-        $this->transaction = $transaction;
-    }
-        //После успешной отправки транзакция остаётся в статусе pending. Другой Job (например, ConfirmTransactionJob) будет:
-        //Периодически проверять txid через eth_getTransactionReceipt.
-        //При получении достаточного числа подтверждений вызывать confirmTransaction().
+
+    public function __construct(
+        private CryptoTransaction $transaction,
+        private TokenConfigService $tokenConfigService
+    ){}
+
     public function handle(
-        BlockchainClient $client,
-        WalletCreationService $walletCreator,
+        BlockchainClientFactory $clientFactory,
         AccountService $accountService
     ): void {
-        // Находим транзакцию (на случай, если она изменилась)
         $transaction = CryptoTransaction::find($this->transaction->id);
 
         if (!$transaction || $transaction->status !== 'pending') {
-            Log::info('Withdrawal job skipped: transaction not pending', [
-                'tx_id' => $this->transaction->id
-            ]);
             return;
         }
 
         $wallet = $transaction->wallet;
-        $user = $wallet->user;
+        $client = $clientFactory->make($wallet->network);
 
-        // Получаем приватный ключ пользователя
-        $privateKey = $walletCreator->getPrivateKey($user, $wallet->currency);
+        // Получаем номер блока транзакции
+        $txBlock = $transaction->metadata['block'] ?? null;
 
-        if (!$privateKey) {
-            Log::error('Private key not found for withdrawal', [
-                'user_id' => $user->id,
-                'wallet_id' => $wallet->id
+        if (!$txBlock) {
+            // Если нет блока (например, для исходящих), получаем receipt
+            $receipt = $client->getTransactionReceipt($transaction->txid);
+            if (!$receipt) {
+                // Транзакция ещё не в блоке
+                $this->retryLater($transaction);
+                return;
+            }
+            $txBlock = $receipt['blockNumber'];
+            $transaction->metadata = array_merge($transaction->metadata ?? [], [
+                'block' => $txBlock,
+                'gasUsed' => $receipt['gasUsed'] ?? null,
+                'status' => $receipt['status'] ?? null,
             ]);
-            $this->fail("Private key not found");
-            return;
+            $transaction->save();
         }
 
-        try {
-            $toAddress = $transaction->metadata['to'] ?? null;
-            if (!$toAddress) {
-                throw new \RuntimeException('Missing destination address');
-            }
+        // Получаем текущий блок
+        $currentBlock = $client->getLatestBlock();
+        $confirmations = $currentBlock - $txBlock;
 
-            // Отправка в зависимости от типа валюты
-            if ($wallet->currency === 'ETH') {
-                $txid = $client->sendNative(
-                    $privateKey,
-                    $toAddress,
-                    (float)$transaction->amount
-                );
-            } else { // USDT (ERC-20)
-                $txid = $client->sendToken(
-                    $privateKey,
-                    $toAddress,
-                    (float)$transaction->amount,
-                    config('currencies.usdt.contract'),
-                    $wallet->decimals
-                );
-            }
+        // Определяем требуемое количество подтверждений для этой сети/токена
+        $config = $this->tokenConfigService->getTokenNetworkConfig($wallet->currency, $wallet->network);
+        $required = $config['confirmation_blocks'];
 
-            // Сохраняем txid (статус остаётся pending до подтверждения)
-            $transaction->txid = $txid;
-            $transaction->save();
-
-            Log::info('Withdrawal transaction sent', [
-                'tx_id' => $transaction->id,
-                'txid' => $txid
+        if ($confirmations >= $required) {
+            // Достаточно подтверждений
+            $accountService->confirmTransaction($transaction, $transaction->txid);
+            Log::info('Transaction confirmed', [
+                'txid' => $transaction->txid,
+                'confirmations' => $confirmations
             ]);
+        } else {
+            // Недостаточно — перезапускаем позже
+            $this->retryLater($transaction);
 
-        } catch (\Exception $e) {
-            Log::error('Withdrawal job failed', [
-                'tx_id' => $transaction->id,
-                'error' => $e->getMessage()
+            Log::debug('Transaction awaiting confirmations', [
+                'txid' => $transaction->txid,
+                'current' => $confirmations,
+                'required' => $required
             ]);
-
-            // Если попытки исчерпаны — отменяем транзакцию и возвращаем средства
-            if ($this->attempts() >= $this->tries) {
-                $accountService->cancelTransaction($transaction);
-                Log::warning('Withdrawal cancelled after max attempts', [
-                    'tx_id' => $transaction->id
-                ]);
-            }
-
-            throw $e; // Пробрасываем для повторной попытки
         }
     }
 
+    protected function retryLater(CryptoTransaction $transaction): void
+    {
+        // Перезапускаем через 2 минуты
+        self::dispatch($transaction)->delay(now()->addMinutes(2));
+    }
 }

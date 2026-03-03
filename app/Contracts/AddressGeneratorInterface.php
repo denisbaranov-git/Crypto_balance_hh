@@ -1,5 +1,4 @@
 <?php
-// app/Contracts/AddressGeneratorInterface.php
 
 namespace App\Contracts;
 

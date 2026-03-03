@@ -9,13 +9,13 @@
         "php": "^8.2",
         "ext-bcmath": "*",
         "ext-gmp": "*",
-        "just-luka/php-tron": "^1.1",
         "kornrunner/keccak": "^1.1",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.10.1",
         "phpseclib/phpseclib": "^2.0",
-        "simplito/elliptic-php": "^1.0"
+        "simplito/elliptic-php": "^1.0",
+        "sultanov-solutions/tron-api": "^5.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

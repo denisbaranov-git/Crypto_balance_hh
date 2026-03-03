@@ -1,5 +1,4 @@
 <?php
-// app/Services/Address/Generators/EthereumAddressGenerator.php
 
 namespace App\Services\Address;
 

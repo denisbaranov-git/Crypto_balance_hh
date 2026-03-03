@@ -1,111 +1,220 @@
 <?php
 // app/Services/Blockchain/Clients/TronClient.php
 
-namespace App\Services\Blockchain;
+namespace App\Services\Blockchain\Clients;
 
 use App\Contracts\BlockchainClient;
-use Trx\TronClient as TronApiClient;
-use Trx\TronAddress;
+use IEXBase\TronAPI\Tron;
+use IEXBase\TronAPI\Provider\HttpProvider;
+use IEXBase\TronAPI\Exception\TronException;
 use Illuminate\Support\Facades\Log;
-use RuntimeException;
 
 class TronClient implements BlockchainClient
 {
-    protected TronApiClient $client;
+    protected Tron $tron;
     protected array $config;
+    protected string $network;
 
     public function __construct(array $config)
     {
         $this->config = $config;
+        $this->network = $config['network'] ?? 'mainnet';
 
-        // Инициализация Tron API клиента
-        // Используем библиотеку just-Luka/php-tron [citation:2]
-        $apiKey = $config['api_key'] ?? env('TRONGRID_API_KEY');
-        $this->client = new TronApiClient($apiKey);
+        $this->initializeClient();
+    }
+
+    /**
+     * Инициализация Tron клиента с правильной передачей API ключа
+     */
+    protected function initializeClient(): void
+    {
+        try {
+            // Создаём опции для инициализации
+            $options = [
+                'network' => $this->network,
+            ];
+
+            // Добавляем API ключ, если есть
+            if (!empty($this->config['api_key'])) {
+                $options['api_key'] = $this->config['api_key'];
+            }
+
+            // Добавляем кастомные эндпоинты, если указаны
+            if (!empty($this->config['full_node'])) {
+                $options['endpoints'] = [
+                    'full_node' => $this->config['full_node'],
+                    'solidity_node' => $this->config['solidity_node'] ?? $this->config['full_node'],
+                    'event_server' => $this->config['event_server'] ?? $this->config['full_node'],
+                ];
+            }
+
+            // Инициализация Tron через статический метод init()
+            // (рекомендуемый способ в sultanov-solutions/tron-api)
+            $this->tron = Tron::init($options);
+
+            Log::info('Tron client initialized successfully', [
+                'network' => $this->network,
+                'has_api_key' => !empty($this->config['api_key'])
+            ]);
+
+        } catch (TronException $e) {
+            Log::error('Tron client initialization failed', [
+                'network' => $this->network,
+                'error' => $e->getMessage()
+            ]);
+
+            // Пробуем альтернативный способ через HttpProvider (fallback)
+            $this->initializeWithProviders();
+        }
+    }
+
+    /**
+     * Альтернативный способ инициализации через провайдеры (для совместимости)
+     */
+    protected function initializeWithProviders(): void
+    {
+        try {
+            $fullNode = new HttpProvider(
+                $this->config['full_node'] ?? 'https://api.trongrid.io'
+            );
+
+            $solidityNode = new HttpProvider(
+                $this->config['solidity_node'] ?? 'https://api.trongrid.io'
+            );
+
+            $eventServer = new HttpProvider(
+                $this->config['event_server'] ?? 'https://api.trongrid.io'
+            );
+
+            $this->tron = new Tron($fullNode, $solidityNode, $eventServer);
+
+            // Если есть API ключ, устанавливаем его через setHeaders если метод существует
+            // (проверяем существование метода через method_exists)
+            if (!empty($this->config['api_key'])) {
+                $this->setApiKeyIfPossible($this->config['api_key']);
+            }
+
+        } catch (TronException $e) {
+            throw new \RuntimeException('Failed to initialize Tron client: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Попытка установить API ключ (если метод существует)
+     */
+    protected function setApiKeyIfPossible(string $apiKey): void
+    {
+        // Проверяем, есть ли метод setHeaders у провайдеров
+        $reflector = new \ReflectionClass($this->tron);
+
+        if ($reflector->hasProperty('fullNode')) {
+            $fullNode = $reflector->getProperty('fullNode')->getValue($this->tron);
+            if ($fullNode && method_exists($fullNode, 'setHeaders')) {
+                $fullNode->setHeaders(['TRON-PRO-API-KEY' => $apiKey]);
+            }
+        }
+
+        if ($reflector->hasProperty('solidityNode')) {
+            $solidityNode = $reflector->getProperty('solidityNode')->getValue($this->tron);
+            if ($solidityNode && method_exists($solidityNode, 'setHeaders')) {
+                $solidityNode->setHeaders(['TRON-PRO-API-KEY' => $apiKey]);
+            }
+        }
     }
 
     /**
      * Получить баланс нативной монеты (TRX)
-     * @param string $address
-     * @return string Баланс в SUN (минимальная единица TRX)
      */
     public function getNativeBalance(string $address): string
     {
         try {
-            $account = $this->client->account($address);
-            $balance = $account->explore()->balance; // в SUN
-            return (string) $balance;
-        } catch (\Exception $e) {
-            Log::error('Failed to get TRX balance', [
-                'address' => $address,
-                'error' => $e->getMessage()
-            ]);
+            $this->tron->setAddress($address);
+            $balance = $this->tron->getBalance(null, true); // true = в SUN
+            return (string)$balance;
+        } catch (TronException $e) {
+            Log::error('Tron getNativeBalance failed', ['address' => $address]);
             return '0';
         }
     }
 
     /**
      * Получить баланс токена (TRC-20)
-     * @param string $address
-     * @param string $contractAddress
-     * @return string
      */
     public function getTokenBalance(string $address, string $contractAddress): string
     {
         try {
-            // Для TRC-20 токенов нужно использовать контракт
-            $contract = $this->client->contract($contractAddress);
-            $balance = $contract->call('balanceOf', $address);
-            return (string) $balance;
-        } catch (\Exception $e) {
-            Log::error('Failed to get token balance on Tron', [
+            $contract = $this->tron->contract($contractAddress); // правильный способ
+            $balance = $contract->balanceOf($address);
+
+            // balanceOf возвращает число в основных единицах (уже с учётом decimals)
+            // конвертируем в минимальные единицы для совместимости с интерфейсом
+            $contractInfo = $contract->array();
+            $decimals = $contractInfo['decimals'] ?? 6;
+
+            // Переводим обратно в минимальные единицы (умножаем на 10^decimals)
+            $balanceInMinUnits = bcmul($balance, bcpow('10', (string)$decimals, 0), 0);
+
+            return $balanceInMinUnits;
+
+        } catch (TronException $e) {
+            Log::error('Tron getTokenBalance failed', [
                 'address' => $address,
-                'contract' => $contractAddress,
-                'error' => $e->getMessage()
+                'contract' => $contractAddress
             ]);
             return '0';
         }
     }
 
     /**
-     * Отправить нативные TRX
+     * Отправить TRX
      */
     public function sendNative(string $fromPrivateKey, string $to, float $amount): string
     {
         try {
-            // Конвертируем TRX в SUN (1 TRX = 1_000_000 SUN)
-            $amountInSun = $amount * 1_000_000;
+            $this->tron->setPrivateKey($fromPrivateKey);
 
-            $transaction = $this->client->sendTrx(
-                $fromPrivateKey,
-                $to,
-                (int) $amountInSun
-            );
+            // В библиотеке send принимает сумму в TRX (не в SUN)
+            $result = $this->tron->send($to, $amount);
 
-            return $transaction['txid'] ?? '';
-        } catch (\Exception $e) {
-            throw new RuntimeException("Failed to send TRX: " . $e->getMessage());
+            if (isset($result['result']) && $result['result'] === true) {
+                return $result['txid'] ?? $result['txID'] ?? '';
+            }
+
+            throw new TronException('Transaction failed');
+
+        } catch (TronException $e) {
+            Log::error('Tron sendNative failed', ['to' => $to, 'amount' => $amount]);
+            throw $e;
         }
     }
 
     /**
-     * Отправить TRC-20 токен (например, USDT на Tron)
+     * Отправить TRC-20 токен (USDT)
      */
     public function sendToken(string $fromPrivateKey, string $to, float $amount, string $contractAddress, int $decimals): string
     {
         try {
-            // Конвертируем в минимальные единицы
-            $amountInMinUnits = $amount * (10 ** $decimals);
+            $this->tron->setPrivateKey($fromPrivateKey);
 
-            $transaction = $this->client->contract($contractAddress)
-                ->callMethod('transfer', [
-                    $to,
-                    (int) $amountInMinUnits
-                ], $fromPrivateKey);
+            // Получаем контракт
+            $contract = $this->tron->contract($contractAddress);
 
-            return $transaction['txid'] ?? '';
-        } catch (\Exception $e) {
-            throw new RuntimeException("Failed to send TRC-20 token: " . $e->getMessage());
+            // Отправляем токены (сумма в основных единицах)
+            $result = $contract->transfer($to, $amount);
+
+            if (isset($result['result']) && $result['result'] === true) {
+                return $result['txid'] ?? '';
+            }
+
+            throw new TronException('Token transfer failed: ' . ($result['message'] ?? 'Unknown error'));
+
+        } catch (TronException $e) {
+            Log::error('Tron sendToken failed', [
+                'to' => $to,
+                'amount' => $amount,
+                'contract' => $contractAddress
+            ]);
+            throw $e;
         }
     }
 
@@ -115,27 +224,39 @@ class TronClient implements BlockchainClient
     public function getIncomingTokenTransactions(string $address, string $contractAddress, int $fromBlock, int $toBlock): array
     {
         try {
-            // TronGrid API предоставляет фильтрацию транзакций [citation:2]
-            $transactions = $this->client->account($address)
-                ->filterLimit(100)
-                ->filterContractAddress($contractAddress)
-                ->filterFromBlock($fromBlock)
-                ->filterToBlock($toBlock)
-                ->transactions();
+            // Используем метод getEvents из библиотеки
+            $events = $this->tron->getEvents($contractAddress, [
+                'event_name' => 'Transfer',
+                'from_block' => $fromBlock,
+                'to_block' => $toBlock
+            ]);
 
-            return array_map(function ($tx) {
-                return [
-                    'txid' => $tx['txID'],
-                    'from' => $tx['from'] ?? '',
-                    'to' => $tx['to'] ?? '',
-                    'value' => (string) ($tx['value'] ?? 0),
-                    'blockNumber' => $tx['blockNumber'] ?? 0,
-                ];
-            }, $transactions);
-        } catch (\Exception $e) {
-            Log::error('Failed to get incoming Tron transactions', [
+            $transactions = [];
+            foreach ($events as $event) {
+                // Парсим события Transfer
+                if (isset($event['result']) &&
+                    isset($event['result']['to']) &&
+                    strtolower($event['result']['to']) === strtolower($address)) {
+
+                    $transactions[] = [
+                        'txid' => $event['transaction_id'],
+                        'from' => $event['result']['from'] ?? '',
+                        'to' => $address,
+                        'value' => $this->amountToMinUnits(
+                            $event['result']['value'] ?? '0',
+                            $this->getDecimals($contractAddress)
+                        ),
+                        'blockNumber' => (int)($event['block_number'] ?? 0),
+                    ];
+                }
+            }
+
+            return $transactions;
+
+        } catch (TronException $e) {
+            Log::error('Tron getIncomingTokenTransactions failed', [
                 'address' => $address,
-                'error' => $e->getMessage()
+                'contract' => $contractAddress
             ]);
             return [];
         }
@@ -147,10 +268,10 @@ class TronClient implements BlockchainClient
     public function getLatestBlock(): int
     {
         try {
-            $block = $this->client->block()->getLatest();
-            return $block['blockNumber'] ?? 0;
-        } catch (\Exception $e) {
-            throw new RuntimeException("Failed to get latest block: " . $e->getMessage());
+            $block = $this->tron->getCurrentBlock();
+            return (int)($block['block_header']['raw_data']['number'] ?? 0);
+        } catch (TronException $e) {
+            return 0;
         }
     }
 
@@ -160,13 +281,13 @@ class TronClient implements BlockchainClient
     public function getLatestBlockData(): array
     {
         try {
-            $block = $this->client->block()->getLatest();
+            $block = $this->tron->getCurrentBlock();
             return [
-                'number' => $block['blockNumber'] ?? 0,
+                'number' => (int)($block['block_header']['raw_data']['number'] ?? 0),
                 'hash' => $block['blockID'] ?? '',
             ];
-        } catch (\Exception $e) {
-            throw new RuntimeException("Failed to get latest block data: " . $e->getMessage());
+        } catch (TronException $e) {
+            return ['number' => 0, 'hash' => ''];
         }
     }
 
@@ -176,33 +297,46 @@ class TronClient implements BlockchainClient
     public function getBlockByNumber(int $blockNumber): ?array
     {
         try {
-            $block = $this->client->block()->getByNumber($blockNumber);
-            if (!$block) {
-                return null;
-            }
+            $block = $this->tron->getBlockByNumber($blockNumber);
+            if (!$block) return null;
+
             return [
-                'number' => $block['blockNumber'],
-                'hash' => $block['blockID'],
+                'number' => $blockNumber,
+                'hash' => $block['blockID'] ?? '',
             ];
-        } catch (\Exception $e) {
+        } catch (TronException $e) {
             return null;
         }
     }
 
     /**
-     * Получить receipt транзакции
+     * Вспомогательный метод для получения decimals контракта
      */
-    public function getTransactionReceipt(string $txid): ?array
+    protected function getDecimals(string $contractAddress): int
     {
         try {
-            $tx = $this->client->transaction($txid);
-            return [
-                'blockNumber' => '0x' . dechex($tx['blockNumber'] ?? 0),
-                'blockHash' => $tx['blockID'] ?? '',
-                'status' => $tx['ret'][0]['contractRet'] ?? '',
-            ];
+            $contract = $this->tron->contract($contractAddress);
+            $info = $contract->array();
+            return (int)($info['decimals'] ?? 6);
         } catch (\Exception $e) {
-            return null;
+            return 6; // default для USDT
         }
+    }
+
+    /**
+     * Конвертирует сумму из основных единиц в минимальные
+     */
+    protected function amountToMinUnits(string $amount, int $decimals): string
+    {
+        return bcmul($amount, bcpow('10', (string)$decimals, 0), 0);
+    }
+
+    /**
+     * Конвертирует hex в десятичную строку
+     */
+    protected function hexToDec(string $hex): string
+    {
+        $hex = ltrim($hex, '0x');
+        return gmp_strval(gmp_init($hex, 16));
     }
 }

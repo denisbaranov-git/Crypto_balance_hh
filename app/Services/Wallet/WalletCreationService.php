@@ -1,5 +1,4 @@
 <?php
-// app/Services/Wallet/WalletCreationService.php
 
 namespace App\Services\Wallet;
 
@@ -10,6 +9,7 @@ use App\Services\Address\AddressGeneratorFactory;
 use App\Services\TokenConfigService;
 use App\Services\Blockchain\BlockchainClientFactory;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 class WalletCreationService
@@ -35,15 +35,13 @@ class WalletCreationService
         $currentBlock = $client->getLatestBlock();
 
         return DB::transaction(function () use ($user, $currency, $network, $config, $currentBlock) {
-            // Блокируем строку пользователя для этой сети
             $networkKey = UserNetworkKey::where('user_id', $user->id)
                 ->where('network', $network)
                 ->lockForUpdate()
                 ->first();
 
             if (!$networkKey) {
-                // Генерация ключа - локальная операция, не требует HTTP
-                $generator = $this->addressGeneratorFactory->make($network);
+                $generator = $this->addressGeneratorFactory->make($currency, $network);
                 $keyData = $generator->generate();
 
                 $networkKey = UserNetworkKey::create([
@@ -54,7 +52,6 @@ class WalletCreationService
                 ]);
             }
 
-            // Проверяем, не создан ли уже кошелёк для этой валюты
             $existingWallet = Wallet::where('user_id', $user->id)
                 ->where('currency', $currency)
                 ->where('network', $network)
@@ -65,7 +62,6 @@ class WalletCreationService
                 throw new \RuntimeException("Wallet already exists for {$currency} on {$network}");
             }
 
-            // Создаём кошелёк
             return Wallet::create([
                 'user_id'                => $user->id,
                 'currency'               => $currency,
@@ -77,12 +73,5 @@ class WalletCreationService
                 'last_scanned_block_hash' => null,
             ]);
         });
-    }
-
-    public function getPrivateKey(User $user, string $currency, string $network): ?string
-    {
-        $privateKeys = $user->crypto_private_keys ?? [];
-        $encrypted = $privateKeys[$network][$currency] ?? null;
-        return $encrypted ? Crypt::decryptString($encrypted) : null;
     }
 }

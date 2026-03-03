@@ -8,6 +8,8 @@ return [
         'native_currency' => 'ETH',
         'explorer' => 'https://etherscan.io',
         'type' => 'evm',
+        'finalized ' => true,
+
     ],
     'bsc' => [
         'name' => 'Binance Smart Chain',
@@ -16,6 +18,7 @@ return [
         'native_currency' => 'BNB',
         'explorer' => 'https://bscscan.com',
         'type' => 'evm',
+        'finalized ' => true,
     ],
     'polygon' => [
         'name' => 'Polygon Mainnet',
@@ -24,13 +27,30 @@ return [
         'native_currency' => 'MATIC',
         'explorer' => 'https://polygonscan.com',
         'type' => 'evm',
+        'finalized ' => true,
+
     ],
     'tron' => [
         'name' => 'Tron Mainnet',
-        'rpc_url' => env('TRON_RPC_URL', 'https://api.trongrid.io'),
-        'api_key' => env('TRONGRID_API_KEY'), // TronGrid требует API ключ [citation:2]
+        'network' => 'mainnet',  // для Tron::init()
+        'full_node' => env('TRON_FULL_NODE', 'https://api.trongrid.io'),
+        'solidity_node' => env('TRON_SOLIDITY_NODE', 'https://api.trongrid.io'),
+        'event_server' => env('TRON_EVENT_SERVER', 'https://api.trongrid.io'),
+        'api_key' => env('TRON_API_KEY'),  // будет передан в options['api_key']
         'native_currency' => 'TRX',
-        'explorer' => 'https://tronscan.org',
         'type' => 'tron',
+        'finalized ' => false,
+    ],
+    'tron_shasta' => [
+        'name' => 'Tron Shasta Testnet',
+        'network' => 'shasta',
+        'full_node' => env('TRON_SHASTA_FULL_NODE', 'https://api.shasta.trongrid.io'),
+        'solidity_node' => env('TRON_SHASTA_SOLIDITY_NODE', 'https://api.shasta.trongrid.io'),
+        'event_server' => env('TRON_SHASTA_EVENT_SERVER', 'https://api.shasta.trongrid.io'),
+        'api_key' => env('TRON_SHASTA_API_KEY'),
+        'native_currency' => 'TRX',
+        'type' => 'tron',
+        'testnet' => true,
+        'finalized ' => false,
     ],
 ];
